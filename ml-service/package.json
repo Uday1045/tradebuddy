@@ -1,0 +1,20 @@
+{
+  "name": "ml-service",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "csv-writer": "^1.6.0",
+    "dotenv": "^17.2.2",
+    "ml-matrix": "^6.12.1",
+    "mongodb": "^6.20.0",
+    "mongoose": "^8.18.2"
+  }
+}
