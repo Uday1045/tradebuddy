@@ -9,7 +9,7 @@ import { SMA, EMA, RSI, MACD, BollingerBands } from "technicalindicators";
  * @param {Object} options
  * @param {Date} options.startDate - Start date for fetching
  * @param {Date} options.endDate - End date for fetching
- * @param {string} options.interval - Candle interval (e.g., "2m", "15m", "30","30m", "1d")
+ * @param {string} options.interval - Candle interval (e.g., "5m", "15m", "30m","1h", "1d")
  * @param {String} source - Source of data ("live", "yesterday", "week", "month", "yearAgo", etc.)
 
  */

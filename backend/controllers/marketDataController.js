@@ -2,125 +2,118 @@ import { fetchOHLCV } from "../config/yahoofinance.js";
 import { EMA, BollingerBands, MACD, RSI } from "technicalindicators";
 
 // Helper to calculate date ranges
-const getDateRange = (type) => {
+// const getDateRange = (type) => {
+//   const now = new Date();
+//   let startDate;
+//   let endDate = now;
+
+//   const isWeekend = (date) => [0, 6].includes(date.getDay());
+//   const previousTradingDay = (date) => {
+//     let d = new Date(date);
+//     while (isWeekend(d)) d.setDate(d.getDate() - 1);
+//     return d;
+//   };
+
+//   switch (type) {
+//     case "live":
+//   case "live":
+//       // 🔹 New logic for live: full session or at least 1 hour window
+//       const marketOpen = new Date(now);
+//       marketOpen.setUTCHours(13, 30, 0, 0); // 13:30 UTC
+//       const marketClose = new Date(now);
+//       marketClose.setUTCHours(20, 0, 0, 0); // 20:00 UTC
+
+//       startDate = marketOpen;
+//       endDate = now > marketClose ? marketClose : now;
+
+//       // ensure minimum 1 hour window
+//       if (endDate.getTime() - startDate.getTime() < 60 * 60 * 1000) {
+//         startDate = new Date(endDate.getTime() - 60 * 60 * 1000);
+//       }
+//       break;
+
+//     case "yesterday":
+//       startDate = new Date(now);
+//       startDate.setDate(now.getDate() - 1);
+//       startDate.setHours(0, 0, 0, 0);
+//       endDate = new Date(now);
+//       endDate.setDate(now.getDate() - 1);
+//       endDate.setHours(23, 59, 59, 999);
+//       break;
+
+//     case "week":
+//       startDate = new Date(now);
+//       startDate.setDate(now.getDate() - 7);
+//       startDate.setHours(0, 0, 0, 0);
+//       break;
+
+//     case "month":
+//       startDate = new Date(now);
+//       startDate.setMonth(now.getMonth() - 1);
+//       startDate.setHours(0, 0, 0, 0);
+//       break;
+
+//     case "yearAgo":
+//       startDate = new Date(now);
+//       startDate.setFullYear(now.getFullYear() - 1);
+//       startDate.setHours(0, 0, 0, 0);
+//       startDate = previousTradingDay(startDate);
+//       endDate = new Date(startDate);
+//       endDate.setHours(23, 59, 59, 999);
+//       break;
+
+//     default:
+//       startDate = new Date(now);
+//   }
+
+//   if (!startDate) startDate = new Date(now);
+//   if (!endDate) endDate = new Date(now);
+
+//   return { startDate, endDate };
+// };
+const getDateRange = (interval) => {
   const now = new Date();
-  let startDate;
-  let endDate = now;
+  let startDate = new Date(now);
+    let endDate= new Date(now);
 
-  const isWeekend = (date) => [0, 6].includes(date.getDay());
-  const previousTradingDay = (date) => {
-    let d = new Date(date);
-    while (isWeekend(d)) d.setDate(d.getDate() - 1);
-    return d;
-  };
 
-  switch (type) {
+  switch (interval) {
     case "live":
-      startDate = new Date(now);
-      startDate.setUTCHours(13, 30, 0, 0);
-      if (endDate < startDate) endDate = new Date(startDate);
+       startDate.setDate(now.getDate() - 60); // last 60 days max
       break;
-
     case "yesterday":
-      startDate = new Date(now);
-      startDate.setDate(now.getDate() - 1);
-      startDate.setHours(0, 0, 0, 0);
-      endDate = new Date(now);
-      endDate.setDate(now.getDate() - 1);
-      endDate.setHours(23, 59, 59, 999);
+      startDate.setDate(now.getDate() - 60); // last 60 days max
       break;
-
     case "week":
-      startDate = new Date(now);
-      startDate.setDate(now.getDate() - 7);
-      startDate.setHours(0, 0, 0, 0);
+      startDate.setDate(now.getDate() - 60); // last 60 days max
       break;
-
     case "month":
-      startDate = new Date(now);
-      startDate.setMonth(now.getMonth() - 1);
-      startDate.setHours(0, 0, 0, 0);
+    startDate.setDate(now.getDate() - 729); 
       break;
-
     case "yearAgo":
-      startDate = new Date(now);
-      startDate.setFullYear(now.getFullYear() - 1);
-      startDate.setHours(0, 0, 0, 0);
-      startDate = previousTradingDay(startDate);
-      endDate = new Date(startDate);
-      endDate.setHours(23, 59, 59, 999);
+      endDate.setFullYear(now.getFullYear() - 1); // e.g., 2024-09-30
+startDate.setDate(endDate.getDate() - 150); // e.g., 2024-08-01
       break;
-
+  
     default:
-      startDate = new Date(now);
+      startDate.setFullYear(now.getFullYear() - 1);
   }
 
-  if (!startDate) startDate = new Date(now);
-  if (!endDate) endDate = new Date(now);
+  // Ensure startDate < now
+  if (startDate.getTime() >= now.getTime()) {
+    startDate.setMinutes(now.getMinutes() - 1);
+  }
 
-  return { startDate, endDate };
+  return { startDate, endDate: now };
 };
-
 // 🔹 Fetch live data for AAPL with indicators
 export const fetchLiveAAPL = async (req, res) => {
-  try {
-    const { startDate, endDate } = getDateRange("live");
-    const lookback = 50; // Enough for EMA, Bollinger, RSI
+  
 
-    const result = await fetchOHLCV("AAPL", {
-      startDate,
-      endDate,
-      interval: "2m",
-      source: "live",
-      lookback,
-    });
-
-    if (!result?.quotes?.length) {
-      return res.json({ success: false, dataPoints: 0, message: "No data returned" });
-    }
-
-    const quotes = result.quotes;
-    const closePrices = quotes.map(q => q.close);
-
-    // Compute indicators
-    const emaValues = EMA.calculate({ period: 20, values: closePrices });
-    const bbValues = BollingerBands.calculate({ period: 20, values: closePrices, stdDev: 2 });
-    const rsiValues = RSI.calculate({ period: 14, values: closePrices });
-    const macdValues = MACD.calculate({
-      values: closePrices,
-      fastPeriod: 12,
-      slowPeriod: 26,
-      signalPeriod: 9,
-      SimpleMAOscillator: false,
-      SimpleMASignal: false
-    });
-
-    // Enrich each quote with indicators
-    const enrichedQuotes = quotes.map((q, i) => {
-      const emaIndex = i - (closePrices.length - emaValues.length);
-      const bbIndex = i - (closePrices.length - bbValues.length);
-      const rsiIndex = i - (closePrices.length - rsiValues.length);
-      const macdIndex = i - (closePrices.length - macdValues.length);
-
-      return {
-        ...q,
-        ema: emaValues[emaIndex] ?? null,
-        bollingerLower: bbValues[bbIndex]?.lower ?? null,
-        bollingerUpper: bbValues[bbIndex]?.upper ?? null,
-        rsi: rsiValues[rsiIndex] ?? null,
-        macd: macdValues[macdIndex]?.MACD ?? null,
-        // signal: macdValues[macdIndex]?.signal ?? null,
-        // histogram: macdValues[macdIndex]?.histogram ?? null,
-      };
-    });
-
-    res.json({ success: true, dataPoints: enrichedQuotes.length, quotes: enrichedQuotes });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, error: error.message });
-  }
+      const { startDate, endDate } = getDateRange("live");
+  const result = await fetchOHLCV("AAPL", { startDate, endDate, interval: "5m", source:"live" });
+  res.json({ success: !!result, dataPoints: result?.quotes?.length || 0 });
 };
-
 // 🔹 Fetch yesterday's data
 export const fetchYesterdayAAPL = async (req, res) => {
   const { startDate, endDate } = getDateRange("yesterday");
@@ -138,7 +131,7 @@ export const fetchWeekAAPL = async (req, res) => {
 // 🔹 Fetch last month's data
 export const fetchMonthAAPL = async (req, res) => {
   const { startDate, endDate } = getDateRange("month");
-  const result = await fetchOHLCV("AAPL", {startDate, endDate, interval: "30m", source:"month"});
+  const result = await fetchOHLCV("AAPL", {startDate, endDate, interval: "1h", source:"month"});
 const dataPoints = result?.quotes?.length ?? result?.indicators?.quote?.[0]?.close?.length ?? 0;
 res.json({ success: !!result, dataPoints });
 };
