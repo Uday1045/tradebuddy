@@ -79,7 +79,7 @@ const getDateRange = (interval) => {
 
   switch (interval) {
     case "live":
-       startDate.setDate(now.getDate() - 60); // last 60 days max
+       startDate.setDate(now.getDate() - 59); // last 60 days max
       break;
     case "yesterday":
       startDate.setDate(now.getDate() - 60); // last 60 days max
@@ -92,6 +92,7 @@ const getDateRange = (interval) => {
       break;
     case "yearAgo":
       endDate.setFullYear(now.getFullYear() - 1); // e.g., 2024-09-30
+       // e.g., 2024-08-01
 startDate.setDate(endDate.getDate() - 150); // e.g., 2024-08-01
       break;
   
@@ -111,35 +112,35 @@ export const fetchLiveAAPL = async (req, res) => {
   
 
       const { startDate, endDate } = getDateRange("live");
-  const result = await fetchOHLCV("AAPL", { startDate, endDate, interval: "5m", source:"live" });
-  res.json({ success: !!result, dataPoints: result?.quotes?.length || 0 });
+  const result = await fetchOHLCV("EURUSD=X", { startDate, endDate, interval: "5m", source:"live" });
+  res.json({ success: !!result, dataPoints: result?.quotes?.length || 0,result });
 };
 // 🔹 Fetch yesterday's data
 export const fetchYesterdayAAPL = async (req, res) => {
   const { startDate, endDate } = getDateRange("yesterday");
-  const result = await fetchOHLCV("AAPL", { startDate, endDate, interval: "15m", source:"yesterday" });
-  res.json({ success: !!result, dataPoints: result?.quotes?.length || 0 });
+  const result = await fetchOHLCV("EURUSD=X", { startDate, endDate, interval: "15m", source:"yesterday" });
+  res.json({ success: !!result, dataPoints: result?.quotes?.length || 0,result });
 };
 
 // 🔹 Fetch last week's data
 export const fetchWeekAAPL = async (req, res) => {
   const { startDate, endDate } = getDateRange("week");
-  const result = await fetchOHLCV("AAPL", {startDate, endDate, interval: "30m", source:"week"});
-  res.json({ success: !!result, dataPoints: result?.quotes?.length || 0 });
+  const result = await fetchOHLCV("EURUSD=X", {startDate, endDate, interval: "30m", source:"week"});
+  res.json({ success: !!result, dataPoints: result?.quotes?.length || 0 ,result });
 };
 
 // 🔹 Fetch last month's data
 export const fetchMonthAAPL = async (req, res) => {
   const { startDate, endDate } = getDateRange("month");
-  const result = await fetchOHLCV("AAPL", {startDate, endDate, interval: "1h", source:"month"});
+  const result = await fetchOHLCV("EURUSD=X", {startDate, endDate, interval: "1h", source:"month"});
 const dataPoints = result?.quotes?.length ?? result?.indicators?.quote?.[0]?.close?.length ?? 0;
-res.json({ success: !!result, dataPoints });
+res.json({ success: !!result, dataPoints ,result });
 };
 
 // 🔹 Fetch same day last year
 export const fetchYearAgoAAPL = async (req, res) => {
   const { startDate, endDate } = getDateRange("yearAgo");
-  const result = await fetchOHLCV("AAPL", {startDate, endDate, interval: "1d", source:"yearAgo"});
+  const result = await fetchOHLCV("EURUSD=X", {startDate, endDate, interval: "1d", source:"yearAgo"});
 const dataPoints = result?.quotes?.length ?? result?.indicators?.quote?.[0]?.close?.length ?? 0;
-res.json({ success: !!result, dataPoints });
+res.json({ success: !!result, dataPoints ,result });
 };
