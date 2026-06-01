@@ -5,6 +5,10 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, confusion_matrix
 import joblib
 
+from utils import (
+    load_interval,
+    build_multitimeframe_dataset
+)
 # ======================
 # CONFIG
 # ======================
@@ -45,127 +49,8 @@ else:
         raise ValueError("Invalid choice")
 
     selected_symbols = [symbols[idx]]
-def load_interval(symbol_folder, interval):
 
-    file_name = f"processed_EURUSD=X_{interval}.csv"
 
-    path = os.path.join(
-        symbol_folder,
-        file_name
-    )
-
-    print("\nLOADING:")
-    print(path)
-
-    df = pd.read_csv(
-        path,
-        index_col="timestampUTC",
-        parse_dates=True
-    )
-
-    print(
-        "Rows loaded:",
-        len(df)
-    )
-
-    return df
-
-def build_multitimeframe_dataset(symbol_folder):
-
-    # ======================
-    # Load 5m (MASTER DATASET)
-    # ======================
-
-    df_5m = load_interval(symbol_folder, "5m")
-
-    df_5m = (
-        df_5m
-        .sort_index()
-        .loc[~df_5m.index.duplicated(keep="last")]
-    )
-
-    target = df_5m["target"].copy()
-
-    merged = df_5m.drop(
-        columns=["target"],
-        errors="ignore"
-    ).copy()
-
-    print("5m rows:", len(merged))
-
-    # ======================
-    # Higher Timeframes
-    # ======================
-
-    intervals = ["15m", "30m", "1h", "1d"]
-
-    for interval in intervals:
-
-        df_other = load_interval(
-            symbol_folder,
-            interval
-        )
-
-        df_other = (
-            df_other
-            .sort_index()
-            .loc[
-                ~df_other.index.duplicated(
-                    keep="last"
-                )
-            ]
-        )
-
-        print(
-            f"{interval} rows:",
-            len(df_other)
-        )
-
-        # Remove target from higher TFs
-        df_other = df_other.drop(
-            columns=["target"],
-            errors="ignore"
-        )
-
-        # Rename columns
-        rename_cols = {
-            col: f"{col}_{interval}"
-            for col in df_other.columns
-        }
-
-        df_other = df_other.rename(
-            columns=rename_cols
-        )
-
-        # Align to 5m timeline
-        df_other = df_other.reindex(
-            merged.index
-        )
-
-        # Forward fill
-        df_other = df_other.ffill()
-
-        # Join
-        merged = merged.join(
-            df_other,
-            how="left"
-        )
-
-    # ======================
-    # Restore target
-    # ======================
-
-    merged["target"] = target
-
-    # Fill any remaining gaps
-    merged = merged.ffill().bfill()
-
-    print(
-        "\nFinal merged shape:",
-        merged.shape
-    )
-
-    return merged
 # ======================
 # TRAIN LOOP
 # ======================
@@ -173,7 +58,7 @@ def build_multitimeframe_dataset(symbol_folder):
 for symbol in selected_symbols:
 
     print("\n" + "=" * 60)
-    print(f"📈 Training Symbol: {symbol}")
+    print(f" Training Symbol: {symbol}")
     print("=" * 60)
 
     symbol_folder = os.path.join(DATA_DIR, symbol)
@@ -249,7 +134,7 @@ for symbol in selected_symbols:
     # TRAIN
     # ======================
 
-    print("\n🤖 Training RandomForest...")
+    print("\n Training RandomForest...")
 
     model = RandomForestClassifier(
         n_estimators=300,
@@ -264,7 +149,7 @@ for symbol in selected_symbols:
     # EVALUATE
     # ======================
 
-    print("\n📊 Classification Report")
+    print("\n Classification Report")
 
     y_pred = model.predict(X_test)
 
@@ -298,7 +183,7 @@ for symbol in selected_symbols:
 
     if "close" in df.columns:
 
-        print("\n💹 Backtest")
+        print("\n Backtest")
 
         y_prob = model.predict_proba(X_test)[:, 1]
 
@@ -352,7 +237,7 @@ for symbol in selected_symbols:
 
     joblib.dump(model, model_path)
 
-    print(f"\n✅ Saved model:")
+    print(f"\n Saved model:")
     print(model_path)
 
-print("\n🎉 Training completed.")
+print("\n Training completed.")

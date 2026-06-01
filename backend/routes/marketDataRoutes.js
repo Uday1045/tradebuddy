@@ -1,20 +1,20 @@
 
 import express from "express";
 import {
-  fetchLiveAAPL,
-  fetchYesterdayAAPL,
-  fetchWeekAAPL,
-  fetchMonthAAPL,
-  fetchYearAgoAAPL,
+  fetchLive,
+  fetchYesterday,
+  fetchWeek,
+  fetchMonth,
+  fetchYearAgo,
 } from "../controllers/marketDataController.js";
 
 const router = express.Router();
 
-router.get("/live", fetchLiveAAPL);
-router.get("/yesterday", fetchYesterdayAAPL);
-router.get("/week", fetchWeekAAPL);
-router.get("/month", fetchMonthAAPL);
-router.get("/year-ago", fetchYearAgoAAPL);
+router.get("/live", fetchLive);
+router.get("/yesterday", fetchYesterday);
+router.get("/week", fetchWeek);
+router.get("/month", fetchMonth);
+router.get("/year-ago", fetchYearAgo);
 
 export default router;
 // import express from "express";

@@ -116,7 +116,7 @@ def run_pipeline(input_base="data", output_base="pipeline_data"):
         if not os.path.isdir(symbol_path):
             continue  # skip non-folders
 
-        print(f"📊 Processing symbol: {symbol}")
+        print(f" Processing symbol: {symbol}")
 
         # Create symbol folder in output
         symbol_output_path = os.path.join(output_base, symbol)
@@ -141,7 +141,7 @@ def run_pipeline(input_base="data", output_base="pipeline_data"):
             output_path = os.path.join(symbol_output_path, output_file_name)
             processed_df.to_csv(output_path, index=True)
 
-            print(f"✅ Saved processed file: {output_path}")
+            print(f" Saved processed file: {output_path}")
 # =======================
 # Run
 # =======================

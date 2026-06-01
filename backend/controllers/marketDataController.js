@@ -1,146 +1,470 @@
+import Stock from "../models/stock.js";
+import MarketData from "../models/marketData.js";
 import { fetchOHLCV } from "../config/yahoofinance.js";
-import { EMA, BollingerBands, MACD, RSI } from "technicalindicators";
 
-// Helper to calculate date ranges
-// const getDateRange = (type) => {
-//   const now = new Date();
-//   let startDate;
-//   let endDate = now;
+const getIncrementalRange = async (
+  symbol,
+  interval,
+  fallbackDays
+) => {
 
-//   const isWeekend = (date) => [0, 6].includes(date.getDay());
-//   const previousTradingDay = (date) => {
-//     let d = new Date(date);
-//     while (isWeekend(d)) d.setDate(d.getDate() - 1);
-//     return d;
-//   };
+  const stock = await Stock.findOne({
+    symbol
+  });
 
-//   switch (type) {
-//     case "live":
-//   case "live":
-//       // 🔹 New logic for live: full session or at least 1 hour window
-//       const marketOpen = new Date(now);
-//       marketOpen.setUTCHours(13, 30, 0, 0); // 13:30 UTC
-//       const marketClose = new Date(now);
-//       marketClose.setUTCHours(20, 0, 0, 0); // 20:00 UTC
-
-//       startDate = marketOpen;
-//       endDate = now > marketClose ? marketClose : now;
-
-//       // ensure minimum 1 hour window
-//       if (endDate.getTime() - startDate.getTime() < 60 * 60 * 1000) {
-//         startDate = new Date(endDate.getTime() - 60 * 60 * 1000);
-//       }
-//       break;
-
-//     case "yesterday":
-//       startDate = new Date(now);
-//       startDate.setDate(now.getDate() - 1);
-//       startDate.setHours(0, 0, 0, 0);
-//       endDate = new Date(now);
-//       endDate.setDate(now.getDate() - 1);
-//       endDate.setHours(23, 59, 59, 999);
-//       break;
-
-//     case "week":
-//       startDate = new Date(now);
-//       startDate.setDate(now.getDate() - 7);
-//       startDate.setHours(0, 0, 0, 0);
-//       break;
-
-//     case "month":
-//       startDate = new Date(now);
-//       startDate.setMonth(now.getMonth() - 1);
-//       startDate.setHours(0, 0, 0, 0);
-//       break;
-
-//     case "yearAgo":
-//       startDate = new Date(now);
-//       startDate.setFullYear(now.getFullYear() - 1);
-//       startDate.setHours(0, 0, 0, 0);
-//       startDate = previousTradingDay(startDate);
-//       endDate = new Date(startDate);
-//       endDate.setHours(23, 59, 59, 999);
-//       break;
-
-//     default:
-//       startDate = new Date(now);
-//   }
-
-//   if (!startDate) startDate = new Date(now);
-//   if (!endDate) endDate = new Date(now);
-
-//   return { startDate, endDate };
-// };
-const getDateRange = (interval) => {
-  const now = new Date();
-  let startDate = new Date(now);
-    let endDate= new Date(now);
-
-
-  switch (interval) {
-    case "live":
-       startDate.setDate(now.getDate() - 30);  // last 60 days max
-      break;
-    case "yesterday":
-      startDate.setDate(now.getDate() - 60); // last 60 days max
-      break;
-    case "week":
-      startDate.setDate(now.getDate() - 60); // last 60 days max
-      break;
-    case "month":
-    startDate.setDate(now.getDate() - 729); 
-      break;
-    case "yearAgo":
-      endDate.setFullYear(now.getFullYear() - 1); // e.g., 2024-09-30
-       // e.g., 2024-08-01
-startDate.setDate(endDate.getDate() - 150); // e.g., 2024-08-01
-      break;
-  
-    default:
-      startDate.setFullYear(now.getFullYear() - 1);
+  if (!stock) {
+    throw new Error(
+      `Stock ${symbol} not found`
+    );
   }
 
-  // Ensure startDate < now
-  if (startDate.getTime() >= now.getTime()) {
-    startDate.setMinutes(now.getMinutes() - 1);
+  const latestCandle =
+    await MarketData.findOne({
+      stock: stock._id,
+      interval
+    })
+    .sort({ timestamp: -1 });
+
+  const endDate = new Date();
+
+  let startDate;
+
+  if (latestCandle) {
+
+    console.log(
+      `Latest ${interval} candle:`,
+      latestCandle.timestamp
+    );
+
+    startDate = new Date(
+      latestCandle.timestamp
+    );
+
+  } else {
+
+    console.log(
+      `No ${interval} candles found.`
+    );
+
+    startDate = new Date();
+
+    startDate.setDate(
+      startDate.getDate() - fallbackDays
+    );
   }
 
-  return { startDate, endDate: now };
+  return {
+    startDate,
+    endDate
+  };
 };
-// 🔹 Fetch live data for AAPL with indicators
-export const fetchLiveAAPL = async (req, res) => {
+
+// =========================
+// 5 Minute Data
+// =========================
+
+
+export const updateLive = async () => {
+
+  const {
+    startDate,
+    endDate
+  } = await getIncrementalRange(
+    "EURUSD=X",
+    "5m",
+    14
+  );
+
+  const result =
+    await fetchOHLCV(
+      "EURUSD=X",
+      {
+        startDate,
+        endDate,
+        interval: "5m",
+        source: "live"
+      }
+    );
+
+  return {
+   
+    result
+  };
+};
+
+
+
+
+export const fetchLive = async (
+  req,
+  res
+) => {
+
+  try {
+
+    const {
+      startDate,
+      endDate
+    } = await getIncrementalRange(
+      "EURUSD=X",
+      "5m", 
+      14
+      
+    );
+
+    const result =
+      await fetchOHLCV(
+        "EURUSD=X",
+        {
+          startDate,
+          endDate,
+          interval: "5m",
+          source: "live"
+        }
+      );
+
+    return res.json({
+      success: true,
+      dataPoints:
+        result?.quotes?.length || 0,
+      startDate,
+      endDate,
+      result
+    });
+
+  } catch (err) {
+
+    return res.status(500).json({
+      success: false,
+      error: err.message
+    });
+
+  }
+};
+
+// =========================
+// 15 Minute Data
+// =========================
+
+
+export const updateYesterday =
+async () => {
+
   
 
-      const { startDate, endDate } = getDateRange("live");
-  const result = await fetchOHLCV("EURUSD=X", { startDate, endDate, interval: "5m", source:"live" });
-  res.json({ success: !!result, dataPoints: result?.quotes?.length || 0,result });
-};
-// 🔹 Fetch yesterday's data
-export const fetchYesterdayAAPL = async (req, res) => {
-  const { startDate, endDate } = getDateRange("yesterday");
-  const result = await fetchOHLCV("EURUSD=X", { startDate, endDate, interval: "15m", source:"yesterday" });
-  res.json({ success: !!result, dataPoints: result?.quotes?.length || 0,result });
+    const {
+      startDate,
+      endDate
+    } = await getIncrementalRange(
+      "EURUSD=X",
+      "15m",
+      60
+    );
+
+    const result =
+      await fetchOHLCV(
+        "EURUSD=X",
+        {
+          startDate,
+          endDate,
+          interval: "15m",
+          source: "yesterday"
+        }
+      );
+
+    return {
+      result
+    };
+  };
+
+
+
+
+
+export const fetchYesterday =
+async (req, res) => {
+
+  try {
+
+    const {
+      startDate,
+      endDate
+    } = await getIncrementalRange(
+      "EURUSD=X",
+      "15m",
+      60
+    );
+
+    const result =
+      await fetchOHLCV(
+        "EURUSD=X",
+        {
+          startDate,
+          endDate,
+          interval: "15m",
+          source: "yesterday"
+        }
+      );
+
+    return res.json({
+      success: true,
+      dataPoints:
+        result?.quotes?.length || 0,
+      result
+    });
+
+  } catch (err) {
+
+    return res.status(500).json({
+      success: false,
+      error: err.message
+    });
+
+  }
 };
 
-// 🔹 Fetch last week's data
-export const fetchWeekAAPL = async (req, res) => {
-  const { startDate, endDate } = getDateRange("week");
-  const result = await fetchOHLCV("EURUSD=X", {startDate, endDate, interval: "30m", source:"week"});
-  res.json({ success: !!result, dataPoints: result?.quotes?.length || 0 ,result });
+// =========================
+// 30 Minute Data
+// =========================
+
+
+export const updateWeek =
+async () => {
+
+  
+
+    const {
+      startDate,
+      endDate
+    } = await getIncrementalRange(
+      "EURUSD=X",
+      "30m",
+      120
+    );
+
+    const result =
+      await fetchOHLCV(
+        "EURUSD=X",
+        {
+          startDate,
+          endDate,
+          interval: "30m",
+          source: "week"
+        }
+      );
+
+    return {
+      
+      result
+    };
+  };
+
+
+
+
+
+export const fetchWeek =
+async (req, res) => {
+
+  try {
+
+    const {
+      startDate,
+      endDate
+    } = await getIncrementalRange(
+      "EURUSD=X",
+      "30m",
+      120
+    );
+
+    const result =
+      await fetchOHLCV(
+        "EURUSD=X",
+        {
+          startDate,
+          endDate,
+          interval: "30m",
+          source: "week"
+        }
+      );
+
+    return res.json({
+      success: true,
+      dataPoints:
+        result?.quotes?.length || 0,
+      result
+    });
+
+  } catch (err) {
+
+    return res.status(500).json({
+      success: false,
+      error: err.message
+    });
+
+  }
 };
 
-// 🔹 Fetch last month's data
-export const fetchMonthAAPL = async (req, res) => {
-  const { startDate, endDate } = getDateRange("month");
-  const result = await fetchOHLCV("EURUSD=X", {startDate, endDate, interval: "1h", source:"month"});
-const dataPoints = result?.quotes?.length ?? result?.indicators?.quote?.[0]?.close?.length ?? 0;
-res.json({ success: !!result, dataPoints ,result });
+// =========================
+// 1 Hour Data
+// =========================
+
+
+export const updateMonth =
+async () => {
+
+  
+
+    const {
+      startDate,
+      endDate
+    } = await getIncrementalRange(
+      "EURUSD=X",
+      "1h",
+      365
+    );
+
+    const result =
+      await fetchOHLCV(
+        "EURUSD=X",
+        {
+          startDate,
+          endDate,
+          interval: "1h",
+          source: "month"
+        }
+      );
+
+    return {
+     
+      result
+    };
+  };
+
+
+
+
+
+
+export const fetchMonth =
+async (req, res) => {
+
+  try {
+
+    const {
+      startDate,
+      endDate
+    } = await getIncrementalRange(
+      "EURUSD=X",
+      "1h",
+      365
+    );
+
+    const result =
+      await fetchOHLCV(
+        "EURUSD=X",
+        {
+          startDate,
+          endDate,
+          interval: "1h",
+          source: "month"
+        }
+      );
+
+    return res.json({
+      success: true,
+      dataPoints:
+        result?.quotes?.length || 0,
+      result
+    });
+
+  } catch (err) {
+
+    return res.status(500).json({
+      success: false,
+      error: err.message
+    });
+
+  }
 };
 
-// 🔹 Fetch same day last year
-export const fetchYearAgoAAPL = async (req, res) => {
-  const { startDate, endDate } = getDateRange("yearAgo");
-  const result = await fetchOHLCV("EURUSD=X", {startDate, endDate, interval: "1d", source:"yearAgo"});
-const dataPoints = result?.quotes?.length ?? result?.indicators?.quote?.[0]?.close?.length ?? 0;
-res.json({ success: !!result, dataPoints ,result });
+// =========================
+// Daily Data
+// =========================
+
+
+export const updateYearAgo =
+async () => {
+
+  
+
+    const {
+      startDate,
+      endDate
+    } = await getIncrementalRange(
+      "EURUSD=X",
+      "1d",
+      365 * 3
+    );
+
+    const result =
+      await fetchOHLCV(
+        "EURUSD=X",
+        {
+          startDate,
+          endDate,
+          interval: "1d",
+          source: "yearAgo"
+        }
+      );
+
+    return {
+      
+      result
+    };
+  };
+
+
+
+
+export const fetchYearAgo =
+async (req, res) => {
+
+  try {
+
+    const {
+      startDate,
+      endDate
+    } = await getIncrementalRange(
+      "EURUSD=X",
+      "1d",
+      365 * 3
+    );
+
+    const result =
+      await fetchOHLCV(
+        "EURUSD=X",
+        {
+          startDate,
+          endDate,
+          interval: "1d",
+          source: "yearAgo"
+        }
+      );
+
+    return res.json({
+      success: true,
+      dataPoints:
+        result?.quotes?.length || 0,
+      result
+    });
+
+  } catch (err) {
+
+    return res.status(500).json({
+      success: false,
+      error: err.message
+    });
+
+  }
 };
