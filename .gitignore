@@ -1,0 +1,23 @@
+# Environment variables
+.env
+*.env
+
+# Node modules
+node_modules/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Trained models
+ml-service/models/
+
+# Large datasets
+ml-service/data/
+ml-service/pipeline_data/
+
+# AI generated data
+ai/pipeline_data/
+
+# VS Code settings
+.vscode/

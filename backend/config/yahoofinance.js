@@ -1,6 +1,8 @@
-import yahooFinance from "yahoo-finance2";
-import Stock from "../models/stock.js";
+import YahooFinance from "yahoo-finance2";
+
+const yahooFinance = new YahooFinance();
 import MarketData from "../models/marketData.js";
+import Stock from "../models/stock.js";
 import { SMA, EMA, RSI, MACD, BollingerBands } from "technicalindicators";
 
 /**

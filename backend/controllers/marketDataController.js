@@ -79,7 +79,7 @@ const getDateRange = (interval) => {
 
   switch (interval) {
     case "live":
-       startDate.setDate(now.getDate() - 59); // last 60 days max
+       startDate.setDate(now.getDate() - 30);  // last 60 days max
       break;
     case "yesterday":
       startDate.setDate(now.getDate() - 60); // last 60 days max

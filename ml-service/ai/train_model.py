@@ -2,116 +2,357 @@ import os
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, confusion_matrix, precision_recall_curve
-from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, confusion_matrix
+import joblib
 
 # ======================
-# 1. LOAD DATA
+# CONFIG
 # ======================
-print("📂 Loading processed data...")
 
-data_folder = "../pipeline_data"
-all_files = [f for f in os.listdir(data_folder) if f.endswith(".csv")]
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(BASE_DIR, "pipeline_data")
+MODEL_DIR = os.path.join(DATA_DIR, "models")
 
-print("📂 Using files:")
-for f in all_files:
-    print(" -", f)
-
-dfs = []
-for f in all_files:
-    df_temp = pd.read_csv(os.path.join(data_folder, f), index_col="timestampUTC", parse_dates=True)
-    # keep track of interval (optional)
-    interval_tag = f.split("_")[-1].replace(".csv","")
-    df_temp["interval"] = interval_tag
-    dfs.append(df_temp)
-
-df = pd.concat(dfs).sort_index()
-
+os.makedirs(MODEL_DIR, exist_ok=True)
 
 # ======================
-# 2. PREPARE FEATURES & TARGET
+# FIND AVAILABLE SYMBOLS
 # ======================
-print("\n🔧 Preparing features and target...")
 
-# Keep numeric only (drop things like localTime)
-numeric = df.select_dtypes(include=[np.number]).copy()
+symbols = [
+    d for d in os.listdir(DATA_DIR)
+    if os.path.isdir(os.path.join(DATA_DIR, d))
+    and d != "models"
+]
 
-if "target" not in numeric:
-    raise RuntimeError("No 'target' column found in processed CSVs")
+if not symbols:
+    raise RuntimeError("No symbol folders found.")
 
-X = numeric.drop(columns=["target"], errors="ignore")
-y = numeric["target"].astype(int)
+print("\nAvailable symbols:")
+for i, s in enumerate(symbols, start=1):
+    print(f"{i}. {s}")
 
-print("Features shape:", X.shape)
-print("Target distribution:\n", y.value_counts(normalize=True))
+print("\n0. Train ALL symbols")
 
+choice = input("\nChoose symbol number: ").strip()
 
+if choice == "0":
+    selected_symbols = symbols
+else:
+    idx = int(choice) - 1
+
+    if idx < 0 or idx >= len(symbols):
+        raise ValueError("Invalid choice")
+
+    selected_symbols = [symbols[idx]]
+def load_interval(symbol_folder, interval):
+
+    file_name = f"processed_EURUSD=X_{interval}.csv"
+
+    path = os.path.join(
+        symbol_folder,
+        file_name
+    )
+
+    print("\nLOADING:")
+    print(path)
+
+    df = pd.read_csv(
+        path,
+        index_col="timestampUTC",
+        parse_dates=True
+    )
+
+    print(
+        "Rows loaded:",
+        len(df)
+    )
+
+    return df
+
+def build_multitimeframe_dataset(symbol_folder):
+
+    # ======================
+    # Load 5m (MASTER DATASET)
+    # ======================
+
+    df_5m = load_interval(symbol_folder, "5m")
+
+    df_5m = (
+        df_5m
+        .sort_index()
+        .loc[~df_5m.index.duplicated(keep="last")]
+    )
+
+    target = df_5m["target"].copy()
+
+    merged = df_5m.drop(
+        columns=["target"],
+        errors="ignore"
+    ).copy()
+
+    print("5m rows:", len(merged))
+
+    # ======================
+    # Higher Timeframes
+    # ======================
+
+    intervals = ["15m", "30m", "1h", "1d"]
+
+    for interval in intervals:
+
+        df_other = load_interval(
+            symbol_folder,
+            interval
+        )
+
+        df_other = (
+            df_other
+            .sort_index()
+            .loc[
+                ~df_other.index.duplicated(
+                    keep="last"
+                )
+            ]
+        )
+
+        print(
+            f"{interval} rows:",
+            len(df_other)
+        )
+
+        # Remove target from higher TFs
+        df_other = df_other.drop(
+            columns=["target"],
+            errors="ignore"
+        )
+
+        # Rename columns
+        rename_cols = {
+            col: f"{col}_{interval}"
+            for col in df_other.columns
+        }
+
+        df_other = df_other.rename(
+            columns=rename_cols
+        )
+
+        # Align to 5m timeline
+        df_other = df_other.reindex(
+            merged.index
+        )
+
+        # Forward fill
+        df_other = df_other.ffill()
+
+        # Join
+        merged = merged.join(
+            df_other,
+            how="left"
+        )
+
+    # ======================
+    # Restore target
+    # ======================
+
+    merged["target"] = target
+
+    # Fill any remaining gaps
+    merged = merged.ffill().bfill()
+
+    print(
+        "\nFinal merged shape:",
+        merged.shape
+    )
+
+    return merged
 # ======================
-# 3. TRAIN-TEST SPLIT
+# TRAIN LOOP
 # ======================
-print("\n✂️ Splitting train/test sets...")
 
-split = int(0.8 * len(df))  # 80% train, 20% test
-X_train, X_test = (
-    X.iloc[:split].fillna(method='ffill').fillna(method='bfill'),
-    X.iloc[split:].fillna(method='ffill').fillna(method='bfill')
-)
-y_train, y_test = y.iloc[:split], y.iloc[split:]
+for symbol in selected_symbols:
 
-print("Train size:", len(X_train), "| Test size:", len(X_test))
+    print("\n" + "=" * 60)
+    print(f"📈 Training Symbol: {symbol}")
+    print("=" * 60)
 
+    symbol_folder = os.path.join(DATA_DIR, symbol)
 
-# ======================
-# 4. TRAIN MODEL
-# ======================
-print("\n🤖 Training RandomForest model...")
+    csv_files = [
+        f for f in os.listdir(symbol_folder)
+        if f.lower().endswith(".csv")
+    ]
 
-model = RandomForestClassifier(
-    n_estimators=200,
-    random_state=42,
-    class_weight="balanced",   # handles imbalance
-    n_jobs=-1
-)
-model.fit(X_train, y_train)
+    if not csv_files:
+        print("⚠️ No CSV files found.")
+        continue
 
+    print("\n📂 Using files:")
+    for f in csv_files:
+        print(" -", f)
 
-# ======================
-# 5. EVALUATE MODEL
-# ======================
-print("\n📊 Classification Report:")
-y_pred = model.predict(X_test)
-print(classification_report(y_test, y_pred))
-
-print("Confusion Matrix:")
-print(confusion_matrix(y_test, y_pred))
+    df = build_multitimeframe_dataset(
+    symbol_folder
+    )
 
 
-# ======================
-# 6. FEATURE IMPORTANCE
-# ======================
-print("\n🔥 Top 15 Feature Importances:")
-feat_imp = pd.Series(model.feature_importances_, index=X_train.columns).sort_values(ascending=False)
-print(feat_imp.head(15))
+        
 
+    print(f"\nTotal rows: {len(df)}")
 
-# ======================
-# 7. BACKTEST (OPTIONAL)
-# ======================
-print("\n💹 Running simple backtest (long-only on predicted=1)...")
+    # ======================
+    # TARGET CHECK
+    # ======================
 
-y_prob = model.predict_proba(X_test)[:,1]
-test_df = pd.DataFrame({
-    "close": df.iloc[split:]["close"],
-    "y_true": y_test,
-    "y_pred": y_pred,
-    "y_prob": y_prob
-})
-test_df["next_return"] = test_df["close"].shift(-1) / test_df["close"] - 1.0
-test_df["strat_ret"] = np.where(test_df["y_pred"]==1, test_df["next_return"], 0.0)
-test_df.dropna(inplace=True)
+    numeric = df.select_dtypes(include=[np.number]).copy()
 
-cum_strategy = (1 + test_df["strat_ret"]).cumprod().iloc[-1] - 1
-cum_bh = (1 + test_df["next_return"]).cumprod().iloc[-1] - 1
+    if "target" not in numeric.columns:
+        print("⚠️ target column missing.")
+        continue
 
-print(f"Strategy cumulative return: {cum_strategy:.4f}")
-print(f"Buy & Hold return: {cum_bh:.4f}")
+    X = numeric.drop(columns=["target"], errors="ignore")
+    y = numeric["target"].astype(int)
+
+    if len(X) == 0:
+        print("⚠️ Empty dataset.")
+        continue
+
+    X = X.ffill().bfill()
+
+    print("Features shape:", X.shape)
+
+    print("\nTarget distribution:")
+    print(y.value_counts(normalize=True))
+
+    # ======================
+    # SPLIT
+    # ======================
+
+    split = int(len(X) * 0.8)
+
+    if split == 0:
+        print("⚠️ Not enough rows.")
+        continue
+
+    X_train = X.iloc[:split]
+    X_test = X.iloc[split:]
+
+    y_train = y.iloc[:split]
+    y_test = y.iloc[split:]
+
+    print(
+        f"\nTrain size: {len(X_train)} | "
+        f"Test size: {len(X_test)}"
+    )
+
+    # ======================
+    # TRAIN
+    # ======================
+
+    print("\n🤖 Training RandomForest...")
+
+    model = RandomForestClassifier(
+        n_estimators=300,
+        random_state=42,
+        class_weight="balanced",
+        n_jobs=-1
+    )
+
+    model.fit(X_train, y_train)
+
+    # ======================
+    # EVALUATE
+    # ======================
+
+    print("\n📊 Classification Report")
+
+    y_pred = model.predict(X_test)
+
+    print(
+        classification_report(
+            y_test,
+            y_pred,
+            zero_division=0
+        )
+    )
+
+    print("\nConfusion Matrix")
+    print(confusion_matrix(y_test, y_pred))
+
+    # ======================
+    # FEATURE IMPORTANCE
+    # ======================
+
+    print("\n🔥 Top 15 Features")
+
+    feat_imp = pd.Series(
+        model.feature_importances_,
+        index=X_train.columns
+    ).sort_values(ascending=False)
+
+    print(feat_imp.head(15))
+
+    # ======================
+    # BACKTEST
+    # ======================
+
+    if "close" in df.columns:
+
+        print("\n💹 Backtest")
+
+        y_prob = model.predict_proba(X_test)[:, 1]
+
+        test_df = pd.DataFrame({
+            "close": df.iloc[split:]["close"],
+            "y_true": y_test,
+            "y_pred": y_pred,
+            "y_prob": y_prob
+        })
+
+        test_df["next_return"] = (
+            test_df["close"].shift(-6)
+            / test_df["close"]
+            - 1
+        )
+
+        test_df["strat_ret"] = np.where(
+            test_df["y_pred"] == 1,
+            test_df["next_return"],
+            0
+        )
+
+        test_df.dropna(inplace=True)
+
+        if len(test_df):
+
+            strategy_return = (
+                (1 + test_df["strat_ret"]).cumprod().iloc[-1] - 1
+            )
+
+            buy_hold_return = (
+                (1 + test_df["next_return"]).cumprod().iloc[-1] - 1
+            )
+
+            print(
+                f"Strategy Return: {strategy_return:.4f}"
+            )
+
+            print(
+                f"Buy & Hold Return: {buy_hold_return:.4f}"
+            )
+
+    # ======================
+    # SAVE MODEL
+    # ======================
+
+    model_path = os.path.join(
+        MODEL_DIR,
+        f"{symbol}_rf.pkl"
+    )
+
+    joblib.dump(model, model_path)
+
+    print(f"\n✅ Saved model:")
+    print(model_path)
+
+print("\n🎉 Training completed.")
