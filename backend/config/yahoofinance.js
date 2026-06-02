@@ -43,13 +43,46 @@ const queryOptions = {
     const bb = BollingerBands.calculate({ period: 20, values: closes, stdDev: 2 });
 
    for (let i = 0; i < result.quotes.length; i++) {
-  const q = result.quotes[i];
+      const q = result.quotes[i];
+
+
+    const candleDate = new Date(q.date);
+
+
+
+const intervalMinutes = {
+  "5m": 5,
+  "15m": 15,
+  "30m": 30
+};
+
+if (intervalMinutes[interval]) {
+
+  const step = intervalMinutes[interval];
+
+  if (
+    candleDate.getUTCMinutes() % step !== 0 ||
+    candleDate.getUTCSeconds() !== 0
+  ) {
+    continue;
+  }
+}
+
+if (interval === "1h") {
+
+  if (
+    candleDate.getUTCMinutes() !== 0 ||
+    candleDate.getUTCSeconds() !== 0
+  ) {
+    continue;
+  }
+}
 
   await MarketData.findOneAndUpdate(
-    { stock: stockDoc._id, timestamp: q.date, interval }, // match existing
+    { stock: stockDoc._id, timestamp: candleDate, interval }, // match existing
     {
       stock: stockDoc._id,
-      timestamp: q.date,
+timestamp: candleDate,
       interval,
       source,
       open: q.open,

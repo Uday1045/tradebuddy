@@ -1,6 +1,8 @@
 import { exec } from "child_process";
 import util from "util";
 import { updateLive,updateMonth,updateWeek,updateYearAgo,updateYesterday } from "./marketDataController.js";
+import Stock from "../models/stock.js";
+import MarketData from "../models/marketData.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -26,6 +28,43 @@ const predictScript = path.resolve(
 );
 
 const execPromise = util.promisify(exec);
+
+const getChartData = async (
+  symbol,
+  interval = "5m"
+) => {
+
+  const stock = await Stock.findOne({
+    symbol
+  });
+
+  if (!stock) {
+    return [];
+  }
+
+  const candles =
+    await MarketData.find({
+      stock: stock._id,
+      interval
+    })
+    .sort({ timestamp: -1 })
+    .limit(300);
+
+  return candles
+    .reverse()
+    .map(candle => ({
+      time: candle.timestamp,
+      price: candle.close
+       
+         
+    
+    }));
+};
+
+
+
+
+
 
 export const analyzeAsset = async (
   req,
@@ -59,18 +98,45 @@ await execPromise(
   await execPromise(
     `python "${predictScript}"`
   );
-    const result =
-      JSON.parse(
-        stdout.trim().split("\n").pop()
-      );
+  const prediction =
+  JSON.parse(
+    stdout.trim().split("\n").pop()
+  );
 
-    return res.json(result);
+  
+  const chartData =
+  await getChartData(
+    prediction.symbol
+  );
+  const currentPrice =
+  chartData.length
+    ? chartData[
+        chartData.length - 1
+      ].price
+    : null;
 
-  } catch (err) {
+const lastUpdated =
+  new Date().toISOString();
 
-    return res.status(500).json({
-      error: err.message
-    });
+return res.json({
+
+  ...prediction,
+
+  currentPrice,
+
+  lastUpdated,
+
+  chartData
+
+});
+  
+ 
+
 
   }
-};
+
+
+    catch (error) {
+      console.error(error);
+      return res.status(500).json({ error: "Internal Server Error" });
+    }};

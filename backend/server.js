@@ -4,6 +4,8 @@ import cors from "cors";
 import connectDB from "./config/db.js";
 import marketDataRoutes from "./routes/marketDataRoutes.js";
 import predictionRoutes from "./routes/predictionRoutes.js";
+import chartRoutes
+from "./routes/chartRoutes.js";
 
 dotenv.config();
 
@@ -24,5 +26,6 @@ connectDB();
 // Routes
 app.use("/api/marketdata", marketDataRoutes);
 app.use("/api", predictionRoutes);
+app.use("/api/chart",chartRoutes);
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

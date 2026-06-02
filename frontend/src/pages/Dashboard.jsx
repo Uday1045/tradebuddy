@@ -1,6 +1,7 @@
 import { useState } from "react";
 import api from "../services/api";
-
+import Header from "../components/Header";
+import MarketCard from "../components/MarketCard";
 import SymbolSelector from "../components/SymbolSelector";
 import PredictionCard from "../components/PredictionCard";
 import PriceChart from "../components/PriceChart";
@@ -11,8 +12,11 @@ function Dashboard() {
   const [predictionData, setPredictionData] =
     useState(null);
 
-  const [loading, setLoading] =
-    useState(false);
+    const [loading, setLoading] =
+  useState(false);
+
+
+  
 
   const chartData = [
     {
@@ -49,46 +53,110 @@ function Dashboard() {
   };
 
   return (
-    <div>
-      <h1>TradeBuddy AI</h1>
+  <div className="min-h-screen bg-slate-950">
 
-      <SymbolSelector
-        symbol={symbol}
-        setSymbol={setSymbol}
-      />
+    <Header />
 
-      <button
-        onClick={handleAnalyze}
-        disabled={loading}
-      >
-        {loading
-          ? "Analyzing..."
-          : "Analyze"}
-      </button>
+    <div className="max-w-7xl mx-auto p-6">
 
-      {predictionData && (
-        <div>
-          <h2>
-            Symbol: {predictionData.symbol}
-          </h2>
+      <div className="mb-6">
+        <SymbolSelector
+          symbol={symbol}
+          setSymbol={setSymbol}
+        />
+      </div>
 
-          <PredictionCard
-            title="30 Minute Prediction"
-            prediction={
-              predictionData.prediction30m
-            }
-            confidence={
-              predictionData.confidence30m
-            }
-          />
+      <div className="grid md:grid-cols-3 gap-6 mb-8">
 
-          <PriceChart
-            data={chartData}
-          />
-        </div>
-      )}
+        <MarketCard
+  title="Last Updated"
+  value={
+    predictionData
+      ? new Date(
+          predictionData.lastUpdated
+        ).toLocaleString(
+          "en-IN",
+          {
+            timeZone: "Asia/Kolkata"
+          }
+        )
+      : "-"
+  }
+/>
+
+        <MarketCard
+          title="Prediction"
+          value={
+            predictionData?.prediction30m ||
+            "-"
+          }
+        />
+
+        <MarketCard
+          title="Confidence"
+          value={
+            predictionData
+              ? `${predictionData.confidence30m}%`
+              : "-"
+          }
+        />
+
+      </div>
+
+      <div className="bg-slate-800 rounded-xl p-8 border border-slate-700">
+
+        <button
+          onClick={handleAnalyze}
+          disabled={loading}
+          className="
+            bg-blue-600
+            hover:bg-blue-700
+            px-8
+            py-3
+            rounded-lg
+            text-white
+            font-semibold
+            disabled:opacity-50
+          "
+        >
+          {
+            loading
+              ? "Analyzing Market..."
+              : "Analyze Market"
+          }
+        </button>
+
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+
+  <div className="lg:col-span-2">
+
+    <PriceChart
+      data={chartData}
+    />
+
+  </div>
+
+  <div>
+
+    <PredictionCard
+      title="AI Signal"
+      prediction={
+        predictionData?.prediction30m
+      }
+      confidence={
+        predictionData?.confidence30m
+      }
+    />
+
+  </div>
+
+</div>
+
     </div>
-  );
-}
 
+  </div>
+);
+};
 export default Dashboard;
