@@ -39,6 +39,8 @@ try:
     df = build_multitimeframe_dataset(
         symbol_folder
     )
+    print(df.index.min())
+    print(df.index.max())
 
     # ======================
     # FEATURES
@@ -56,6 +58,7 @@ try:
     X = X.ffill().bfill()
 
     latest = X.iloc[[-1]]
+    print(latest)
 
     # ======================
     # DEBUG

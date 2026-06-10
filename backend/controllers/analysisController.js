@@ -85,13 +85,27 @@ export const analyzeAsset = async (
 console.log(
   `node "${exportScript}" EURUSD=X`
 );
-    await execPromise(
+   const exportResult = await execPromise(
   `node "${exportScript}" EURUSD=X`
 );
 
-await execPromise(
-  `python "${pipelineScript}"`
+console.log("EXPORT STDOUT:");
+console.log(exportResult.stdout);
+
+console.log("EXPORT STDERR:");
+console.log(exportResult.stderr);
+console.log(
+  `python "${pipelineScript}" EURUSD=X`
 );
+const pipelineResult = await execPromise(
+  `python "${pipelineScript}" EURUSD=X`
+);
+
+console.log("PIPELINE STDOUT:");
+console.log(pipelineResult.stdout);
+
+console.log("PIPELINE STDERR:");
+console.log(pipelineResult.stderr);
     console.log("Step 4: Predict");
 
    const { stdout } =

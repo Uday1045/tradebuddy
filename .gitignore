@@ -16,7 +16,7 @@ ml-service/data/
 ml-service/pipeline_data/
 
 # AI generated data
-ai/pipeline_data/
+
 
 # VS Code settings
 .vscode/

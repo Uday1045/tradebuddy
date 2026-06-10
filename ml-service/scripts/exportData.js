@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 
 import connectDB from "../../backend/config/db.js";
 import Stock from "../../backend/models/stock.js";
@@ -9,47 +10,77 @@ import MarketData from "../../backend/models/marketData.js";
 
 dotenv.config();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 // CLI arg
-const symbol = process.argv[2]; // e.g., EURUSD
+const symbol = process.argv[2];
+
 if (!symbol) {
   console.error("Usage: node exportData.js SYMBOL");
   process.exit(1);
 }
 
+// This resolves to:
+// D:/TradeBuddy/ml-service/data/EURUSD=X
+const symbolDir = path.resolve(
+  __dirname,
+  "../data",
+  symbol
+);
+
+console.log("Export folder:", symbolDir);
+
 // Intervals to export
-const INTERVALS = ["2m", "5m", "15m", "30m", "1h", "1d"];
+const INTERVALS = [
+  "2m",
+  "5m",
+  "15m",
+  "30m",
+  "1h",
+  "1d"
+];
 
 (async function main() {
   try {
     await connectDB();
 
-    // Find stock document
-    const stockDoc = await Stock.findOne({ symbol });
+    const stockDoc = await Stock.findOne({
+      symbol
+    });
+
     if (!stockDoc) {
-      console.error("❌ Stock not found:", symbol);
+      console.error(
+        "❌ Stock not found:",
+        symbol
+      );
       process.exit(1);
     }
 
-    //  Create ./data/<symbol> folder if not exists
-    const symbolDir = path.resolve(`./data/${symbol}`);
-    if (!fs.existsSync(symbolDir)) fs.mkdirSync(symbolDir, { recursive: true });
+    // Create:
+    // ml-service/data/EURUSD=X
+    if (!fs.existsSync(symbolDir)) {
+      fs.mkdirSync(symbolDir, {
+        recursive: true
+      });
+    }
 
-    // Loop through intervals
     for (const interval of INTERVALS) {
       let data = await MarketData.find({
         stock: stockDoc._id,
-        interval,
+        interval
       }).sort({ timestamp: 1 });
 
       if (!data.length) {
-        console.log(` No data found for ${symbol} with interval ${interval}`);
+        console.log(
+          `No data found for ${symbol} with interval ${interval}`
+        );
         continue;
       }
 
-      // Remove rows missing indicators (except daily)
       if (interval !== "1d") {
         data = data.filter(
-          (doc) =>
+          doc =>
             doc.movingAverage != null &&
             doc.ema != null &&
             doc.rsi != null &&
@@ -60,13 +91,12 @@ const INTERVALS = ["2m", "5m", "15m", "30m", "1h", "1d"];
 
         if (!data.length) {
           console.log(
-            ` No complete rows (indicators) for ${symbol} at ${interval}`
+            `No complete rows (indicators) for ${symbol} at ${interval}`
           );
           continue;
         }
       }
 
-      // Convert to CSV
       const csvData = [
         [
           "timestampUTC",
@@ -81,14 +111,22 @@ const INTERVALS = ["2m", "5m", "15m", "30m", "1h", "1d"];
           "rsi",
           "macd",
           "bollingerUpper",
-          "bollingerLower",
+          "bollingerLower"
         ],
-        ...data.map((doc) => {
-          const utc = doc.timestamp.toISOString();
-          const local = new Date(doc.timestamp).toLocaleString("en-IN", {
-            timeZone: "Asia/Kolkata",
-            hour12: false,
-          });
+        ...data.map(doc => {
+          const utc =
+            doc.timestamp.toISOString();
+
+          const local = new Date(
+            doc.timestamp
+          ).toLocaleString(
+            "en-IN",
+            {
+              timeZone: "Asia/Kolkata",
+              hour12: false
+            }
+          );
+
           return [
             utc,
             local,
@@ -102,23 +140,43 @@ const INTERVALS = ["2m", "5m", "15m", "30m", "1h", "1d"];
             doc.rsi,
             doc.macd,
             doc.bollingerUpper,
-            doc.bollingerLower,
+            doc.bollingerLower
           ];
-        }),
+        })
       ]
-        .map((row) => row.join(","))
+        .map(row => row.join(","))
         .join("\n");
 
-      // Save as data/<symbol>/<symbol>_<interval>.csv
-      const outPath = path.resolve(`${symbolDir}/${symbol}_${interval}.csv`);
-      fs.writeFileSync(outPath, csvData);
-      console.log(` Exported ${data.length} rows to ${outPath}`);
+      const outPath = path.join(
+        symbolDir,
+        `${symbol}_${interval}.csv`
+      );
+
+      fs.writeFileSync(
+        outPath,
+        csvData
+      );
+
+      console.log(
+        `✅ Exported ${data.length} rows to ${outPath}`
+      );
     }
 
     await mongoose.connection.close();
+
+    console.log(
+      "✅ Export completed successfully"
+    );
+
     process.exit(0);
+
   } catch (err) {
-    console.error("❌ Error exporting data:", err);
+
+    console.error(
+      "❌ Error exporting data:",
+      err
+    );
+
     process.exit(1);
   }
 })();
