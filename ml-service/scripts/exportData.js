@@ -8,11 +8,13 @@ import connectDB from "../../backend/config/db.js";
 import Stock from "../../backend/models/stock.js";
 import MarketData from "../../backend/models/marketData.js";
 
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+dotenv.config({
+  path: path.join(__dirname, ".env")
+});
 // CLI arg
 const symbol = process.argv[2];
 
@@ -33,7 +35,6 @@ console.log("Export folder:", symbolDir);
 
 // Intervals to export
 const INTERVALS = [
-  "2m",
   "5m",
   "15m",
   "30m",
@@ -69,7 +70,8 @@ const INTERVALS = [
       let data = await MarketData.find({
         stock: stockDoc._id,
         interval
-      }).sort({ timestamp: 1 });
+      }).sort({ timestamp: 1 })
+      .lean();
 
       if (!data.length) {
         console.log(

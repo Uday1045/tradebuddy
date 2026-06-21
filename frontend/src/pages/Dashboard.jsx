@@ -18,28 +18,15 @@ function Dashboard() {
 
   
 
-  const chartData = [
-    {
-      time: "10:00",
-      price: 1.12,
-    },
-    {
-      time: "11:00",
-      price: 1.13,
-    },
-    {
-      time: "12:00",
-      price: 1.15,
-    },
-  ];
+  
 
   const handleAnalyze = async () => {
     try {
       setLoading(true);
 
-      const response = await api.post(
+      const response = await api.get(
         "/analyze",
-      
+        { symbol }
       );
 
       setPredictionData(response.data);
@@ -71,13 +58,11 @@ function Dashboard() {
         <MarketCard
   title="Last Updated"
   value={
-    predictionData
-      ? new Date(
-          predictionData.lastUpdated
-        ).toLocaleString(
+    predictionData?.createdAt
+      ? new Date(predictionData.createdAt).toLocaleString(
           "en-IN",
           {
-            timeZone: "Asia/Kolkata"
+            timeZone: "Asia/Kolkata",
           }
         )
       : "-"
@@ -133,7 +118,7 @@ function Dashboard() {
   <div className="lg:col-span-2">
 
     <PriceChart
-      data={chartData}
+      data={predictionData?.chartData || []}
     />
 
   </div>

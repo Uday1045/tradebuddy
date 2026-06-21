@@ -7,6 +7,6 @@ import { analyzeAsset } from "../controllers/analysisController.js";
 const router = express.Router();
 
 router.post("/predict", predictAsset);
-router.post("/analyze", analyzeAsset);
+router.get("/analyze", analyzeAsset);
 
 export default router;

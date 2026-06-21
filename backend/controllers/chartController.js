@@ -35,22 +35,10 @@ export const getChartData = async (
       )
       .limit(500);
 
-    const chartData =
-      candles.map(
-        candle => ({
-          time:
-            candle.timestamp
-              .toLocaleTimeString(
-                "en-IN",
-                {
-                  hour: "2-digit",
-                  minute: "2-digit"
-                }
-              ),
-          price:
-            candle.close
-        })
-      );
+    const chartData = candles.map(candle => ({
+  timestamp: candle.timestamp,
+  price: candle.close
+}));
 
     return res.json(
       chartData

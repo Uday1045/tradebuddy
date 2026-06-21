@@ -2,6 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import connectDB from "./config/db.js";
+import { startScheduler } from "./services/scheduler.js";
 import marketDataRoutes from "./routes/marketDataRoutes.js";
 import predictionRoutes from "./routes/predictionRoutes.js";
 import chartRoutes
@@ -27,5 +28,7 @@ connectDB();
 app.use("/api/marketdata", marketDataRoutes);
 app.use("/api", predictionRoutes);
 app.use("/api/chart",chartRoutes);
+
+startScheduler();
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

@@ -3,6 +3,7 @@ import util from "util";
 import { updateLive,updateMonth,updateWeek,updateYearAgo,updateYesterday } from "./marketDataController.js";
 import Stock from "../models/stock.js";
 import MarketData from "../models/marketData.js";
+import Prediction from "../models/Prediction.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -15,6 +16,7 @@ const __dirname =
   const exportScript = path.resolve(
   __dirname,
   "../../ml-service/scripts/exportData.js"
+  
 );
 
 const pipelineScript = path.resolve(
@@ -66,91 +68,101 @@ const getChartData = async (
 
 
 
-export const analyzeAsset = async (
-  req,
-  res
-) => {
+// export const analyzeAsset = async (
+//   req,
+//   res
+// ) => {
 
-  try {
+//   try {
 
-    console.log("Step 1: Fetch Data");
+//     console.log("Step 1: Fetch Data");
 
-    await updateLive();
-    await updateYesterday();
-    await updateWeek();
-    await updateMonth();
-    await updateYearAgo();
+//     await updateLive();
+//     await updateYesterday();
+//     await updateWeek();
+//     await updateMonth();
+//     await updateYearAgo();
 
-    console.log("Step 2: Export CSV");
-console.log(
-  `node "${exportScript}" EURUSD=X`
-);
-   const exportResult = await execPromise(
-  `node "${exportScript}" EURUSD=X`
-);
+//     console.log("Step 2: Export CSV");
+// console.log(
+//   `node "${exportScript}" EURUSD=X`
+// );
+//    const exportResult = await execPromise(
+//   `node "${exportScript}" EURUSD=X`,
+//    {
+//     maxBuffer: 1024 * 1024 * 50
+//   }
+// );
 
-console.log("EXPORT STDOUT:");
-console.log(exportResult.stdout);
+// const pipelineResult = await execPromise(
+//   `python "${pipelineScript}" EURUSD=X`,
+//   {
+//     maxBuffer: 1024 * 1024 * 50
+//   }
+// );
 
-console.log("EXPORT STDERR:");
-console.log(exportResult.stderr);
-console.log(
-  `python "${pipelineScript}" EURUSD=X`
-);
-const pipelineResult = await execPromise(
-  `python "${pipelineScript}" EURUSD=X`
-);
 
-console.log("PIPELINE STDOUT:");
-console.log(pipelineResult.stdout);
+//     console.log("Step 4: Predict");
 
-console.log("PIPELINE STDERR:");
-console.log(pipelineResult.stderr);
-    console.log("Step 4: Predict");
-
-   const { stdout } =
-  await execPromise(
-    `python "${predictScript}"`
-  );
-  const prediction =
-  JSON.parse(
-    stdout.trim().split("\n").pop()
-  );
+//    const { stdout } =
+//   await execPromise(
+//     `python "${predictScript}"`
+//   );
+//   const prediction =
+//   JSON.parse(
+//     stdout.trim().split("\n").pop()
+//   );
 
   
-  const chartData =
-  await getChartData(
-    prediction.symbol
-  );
-  const currentPrice =
-  chartData.length
-    ? chartData[
-        chartData.length - 1
-      ].price
-    : null;
+//   const chartData =
+//   await getChartData(
+//     prediction.symbol
+//   );
+//   const currentPrice =
+//   chartData.length
+//     ? chartData[
+//         chartData.length - 1
+//       ].price
+//     : null;
 
-const lastUpdated =
-  new Date().toISOString();
+// const lastUpdated =
+//   new Date().toISOString();
 
-return res.json({
+// return res.json({
 
-  ...prediction,
+//   ...prediction,
 
-  currentPrice,
+//   currentPrice,
 
-  lastUpdated,
+//   lastUpdated,
 
-  chartData
+//   chartData
 
-});
+// });
   
  
 
 
-  }
+//   }
 
 
-    catch (error) {
-      console.error(error);
-      return res.status(500).json({ error: "Internal Server Error" });
-    }};
+//     catch (error) {
+//       console.error(error);
+//       return res.status(500).json({ error: "Internal Server Error" });
+//     }};
+export const analyzeAsset = async (req, res) => {
+  const prediction = await Prediction
+    .findOne({
+      symbol: "EURUSD=X"
+    })
+    .sort({ createdAt: -1 });
+
+  const chartData = await getChartData(
+    "EURUSD=X"
+  );
+
+  return res.json({
+    ...prediction.toObject(),
+    chartData
+  });
+};

@@ -9,7 +9,6 @@ __pycache__/
 *.pyc
 
 # Trained models
-ml-service/models/
 
 # Large datasets
 ml-service/data/
