@@ -137,11 +137,14 @@ for symbol in selected_symbols:
     print("\n Training RandomForest...")
 
     model = RandomForestClassifier(
-        n_estimators=300,
-        random_state=42,
-        class_weight="balanced",
-        n_jobs=-1
-    )
+    n_estimators=150,
+    max_depth=20,
+    min_samples_split=5,
+    min_samples_leaf=2,
+    class_weight="balanced",
+    random_state=42,
+    n_jobs=-1
+)
 
     model.fit(X_train, y_train)
 
@@ -230,14 +233,18 @@ for symbol in selected_symbols:
     # SAVE MODEL
     # ======================
 
-    model_path = os.path.join(
+    MODEL_PATH = os.path.join(
         MODEL_DIR,
         f"{symbol}_rf.pkl"
     )
 
-    joblib.dump(model, model_path)
+    joblib.dump(
+    model,
+    MODEL_PATH,
+    compress= 3
+    )
 
-    print(f"\n Saved model:")
-    print(model_path)
+    print(f"\nSaved model: {MODEL_PATH}")
+    print(f"Model size: {os.path.getsize(MODEL_PATH) / (1024 * 1024):.2f} MB")
 
 print("\n Training completed.")

@@ -16,7 +16,7 @@ ml-service/data/
 # Generated processed CSVs
 ml-service/pipeline_data/EURUSD=X/
 
-ml-service/pipeline_data/models/
+
 
 
 # VS Code settings
