@@ -2,9 +2,9 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import connectDB from "./config/db.js";
-import { startScheduler } from "./services/scheduler.js";
+import { startMarketCron } from "./cron/marketCron.js";
+
 import marketDataRoutes from "./routes/marketDataRoutes.js";
-import predictionRoutes from "./routes/predictionRoutes.js";
 import chartRoutes
 from "./routes/chartRoutes.js";
 
@@ -22,13 +22,22 @@ app.use(
 app.use(express.json());
 
 // Connect to MongoDB
-connectDB();
 
 // Routes
 app.use("/api/marketdata", marketDataRoutes);
-app.use("/api", predictionRoutes);
 app.use("/api/chart",chartRoutes);
 
-startScheduler();
+ connectDB()
+.then(() => {
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  app.listen(PORT, () => {
+
+    console.log(
+      `Server running on port ${PORT}`
+    );
+
+    startMarketCron();
+
+  });
+
+});

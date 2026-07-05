@@ -42,27 +42,11 @@ def calculate_bollinger(series, period=20, num_std=2):
 # =======================
 
 def process_stock_file(df):
-    df['timestampUTC'] = pd.to_datetime(
-        df['timestampUTC'],
-        format='mixed',
-        dayfirst=True,
-        errors='coerce'
-   )
-
-    df['localTime'] = (
-        df['localTime']
-        .astype(str)
-        .str.strip()
-    )
-
-# combine date + time
-    df['timestampUTC'] = pd.to_datetime(
-        df['timestampUTC'].dt.strftime('%Y-%m-%d')
-        + ' '
-        + df['localTime'],
-        utc=True,
-        errors='coerce'
-    )
+    df["timestampUTC"] = pd.to_datetime(
+    df["timestampUTC"],
+    utc=True,
+    errors="coerce"
+)
 
     df.set_index('timestampUTC', inplace=True)
     df["hour"] = df.index.hour
@@ -95,11 +79,10 @@ def process_stock_file(df):
 
 
     # Drop rows with NaN after indicator calculations
-    df.dropna(inplace=True)
-
+    df = df.dropna(subset=["target"])
     # Fill any remaining missing values
-    df.fillna(method='ffill', inplace=True)
-    df.fillna(method='bfill', inplace=True)
+    df = df.ffill()
+    df = df.bfill()
 
     return df
 
@@ -130,11 +113,10 @@ def run_pipeline(input_base="data", output_base="pipeline_data"):
             file_path = os.path.join(symbol_path, file_name)
             df = pd.read_csv(file_path)
 
-            processed_df = process_stock_file(df)
-
+            processed_df = process_stock_file(df).copy()
+            processed_df["interval"] = interval
             # Extract interval from filename, e.g. EURUSD=X_5m.csv → "5m"
             interval = file_name.split("_")[-1].replace(".csv", "")
-            processed_df["interval"] = interval
 
             # Output file
             output_file_name = f"processed_{file_name}"
@@ -142,12 +124,89 @@ def run_pipeline(input_base="data", output_base="pipeline_data"):
             processed_df.to_csv(output_path, index=True)
 
             print(f" Saved processed file: {output_path}")
+
+
+
+def process_symbol(symbol):
+    """
+    Process a single symbol folder.
+    """
+
+    BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+
+    input_base = os.path.join(
+        BASE_DIR,
+        "data"
+    )
+
+    output_base = os.path.join(
+        BASE_DIR,
+        "pipeline_data"
+    )
+
+    symbol_path = os.path.join(
+        input_base,
+        symbol
+    )
+
+    if not os.path.exists(symbol_path):
+        raise Exception(
+            f"Raw data not found for {symbol}"
+        )
+
+    symbol_output_path = os.path.join(
+        output_base,
+        symbol
+    )
+
+    os.makedirs(
+        symbol_output_path,
+        exist_ok=True
+    )
+
+    print(f"Processing {symbol}")
+
+    for file_name in os.listdir(symbol_path):
+
+        if not file_name.endswith(".csv"):
+            continue
+
+        file_path = os.path.join(
+            symbol_path,
+            file_name
+        )
+
+        df = pd.read_csv(file_path)
+
+        processed_df = process_stock_file(df)
+
+        interval = (
+            file_name
+            .split("_")[-1]
+            .replace(".csv", "")
+        )
+
+        processed_df["interval"] = interval
+
+        output_path = os.path.join(
+            symbol_output_path,
+            f"processed_{file_name}"
+        )
+
+        processed_df.to_csv(
+            output_path,
+            index=True
+        )
+
+        print(
+            f"Processed {output_path}"
+        )
+
+    return True
+
 # =======================
 # Run
 # =======================
 
 if __name__ == "__main__":
-    run_pipeline(
-        input_base=r"D:\TradeBuddy\ml-service\data",
-        output_base=r"D:\TradeBuddy\ml-service\pipeline_data"
-    )
+    process_symbol("EURUSD=X")

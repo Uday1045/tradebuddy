@@ -1,5 +1,5 @@
 import { useState } from "react";
-import api from "../services/api";
+import mlApi from "../services/mlApi";
 import Header from "../components/Header";
 import MarketCard from "../components/MarketCard";
 import SymbolSelector from "../components/SymbolSelector";
@@ -21,23 +21,27 @@ function Dashboard() {
   
 
   const handleAnalyze = async () => {
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      const response = await api.get(
-        "/analyze",
-        { symbol }
-      );
+    const response = await mlApi.get(
+      `/predict/${symbol}`
+    );
 
-      setPredictionData(response.data);
-    } catch (error) {
-      console.error(error);
+    setPredictionData(response.data);
 
-      alert("Failed to analyze market");
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (error) {
+
+    console.error(error);
+
+    alert("Prediction failed");
+
+  } finally {
+
+    setLoading(false);
+
+  }
+};
 
   return (
   <div className="min-h-screen bg-slate-950">
