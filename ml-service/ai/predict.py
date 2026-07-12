@@ -115,7 +115,9 @@ def predict_symbol(symbol):
             "symbol": symbol,
             "prediction30m":
                 "UP" if prediction == 1 else "DOWN",
-            "confidence30m": confidence
+            "confidence30m": confidence,
+            "createdAt": datetime.now(timezone.utc).isoformat()
+
         }
 
 
